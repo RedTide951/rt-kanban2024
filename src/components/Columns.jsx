@@ -10,8 +10,7 @@ import {
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { DragDropContext } from "react-beautiful-dnd";
-import { Droppable, Draggable } from "react-beautiful-dnd";
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 
 // Initial column data
 const initialColumns = [
@@ -29,8 +28,6 @@ const initialColumns = [
 const Columns = () => {
   const [columns, setColumns] = useState(initialColumns);
   const [newColumnTitle, setNewColumnTitle] = useState("");
-  const [taskTitle, setTaskTitle] = useState("");
-  const [taskDescription, setTaskDescription] = useState("");
 
   // add column
   const addNewColumn = () => {
@@ -53,22 +50,27 @@ const Columns = () => {
 
   // Add task
   const addTaskToColumn = (columnId) => {
-    if (taskTitle && taskDescription) {
-      const newTask = {
-        id: new Date().getTime().toString(),
-        title: taskTitle,
-        description: taskDescription,
-      };
-      const updatedColumns = columns.map((column) => {
-        if (column.id === columnId) {
-          return { ...column, tasks: [...column.tasks, newTask] };
-        }
-        return column;
-      });
-      setColumns(updatedColumns);
-      setTaskTitle("");
-      setTaskDescription("");
-    }
+    const updatedColumns = columns.map((column) => {
+      if (
+        column.id === columnId &&
+        column.taskTitle &&
+        column.taskDescription
+      ) {
+        const newTask = {
+          id: new Date().getTime().toString(),
+          title: column.taskTitle,
+          description: column.taskDescription,
+        };
+        return {
+          ...column,
+          tasks: [...column.tasks, newTask],
+          taskTitle: "",
+          taskDescription: "",
+        };
+      }
+      return column;
+    });
+    setColumns(updatedColumns);
   };
 
   const removeTaskFromColumn = (columnId, taskId) => {
@@ -82,13 +84,13 @@ const Columns = () => {
     setColumns(updatedColumns);
   };
 
+  // Handle drag and drop
+
   const handleOnDragEnd = (result) => {
     const { source, destination } = result;
 
-    // Check if the task was dropped outside a valid destination
     if (!destination) return;
 
-    // Moving tasks within the same column
     if (source.droppableId === destination.droppableId) {
       const column = columns.find((col) => col.id === source.droppableId);
       const reorderedTasks = Array.from(column.tasks);
@@ -103,10 +105,7 @@ const Columns = () => {
       });
 
       setColumns(updatedColumns);
-    }
-
-    // Moving tasks between columns
-    else {
+    } else {
       const sourceColumn = columns.find((col) => col.id === source.droppableId);
       const destColumn = columns.find(
         (col) => col.id === destination.droppableId
@@ -141,9 +140,8 @@ const Columns = () => {
               {(provided) => (
                 <Grid
                   item
-                  xs={2}
-                  size={3}
-                  key={column.id}
+                  xs={12}
+                  md={4}
                   ref={provided.innerRef}
                   {...provided.droppableProps}
                 >
@@ -162,15 +160,31 @@ const Columns = () => {
                       <TextField
                         label="Task Title"
                         variant="outlined"
-                        value={taskTitle}
-                        onChange={(e) => setTaskTitle(e.target.value)}
+                        value={column.taskTitle} // Independent state per column
+                        onChange={(e) =>
+                          setColumns(
+                            columns.map((col) =>
+                              col.id === column.id
+                                ? { ...col, taskTitle: e.target.value }
+                                : col
+                            )
+                          )
+                        }
                         fullWidth
                       />
                       <TextField
                         label="Task Description"
                         variant="outlined"
-                        value={taskDescription}
-                        onChange={(e) => setTaskDescription(e.target.value)}
+                        value={column.taskDescription} // Independent state per column
+                        onChange={(e) =>
+                          setColumns(
+                            columns.map((col) =>
+                              col.id === column.id
+                                ? { ...col, taskDescription: e.target.value }
+                                : col
+                            )
+                          )
+                        }
                         fullWidth
                         multiline
                         rows={2}
@@ -186,7 +200,6 @@ const Columns = () => {
                       </Button>
                     </Box>
 
-                    {/* Display tasks in the column */}
                     <Box mt={2}>
                       {column.tasks.map((task, index) => (
                         <Draggable
@@ -194,11 +207,12 @@ const Columns = () => {
                           draggableId={task.id}
                           index={index}
                         >
-                          {(provided) => (
+                          {(provided, snapshot) => (
                             <Card
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
+                              className={snapshot.isDragging ? "dragging" : ""}
                               sx={{ mt: 1 }}
                             >
                               <CardContent>
@@ -228,7 +242,6 @@ const Columns = () => {
           ))}
         </Grid>
 
-        {/* Form to add new columns */}
         <Box mt={2}>
           <TextField
             label="New Column Title"
